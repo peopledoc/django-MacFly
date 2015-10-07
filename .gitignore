@@ -1,3 +1,6 @@
+# vim swap files
+*.sw[pon]
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
