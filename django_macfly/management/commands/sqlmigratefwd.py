@@ -23,6 +23,7 @@ from django.db.migrations.operations import (
 OPS = [
     CreateModel,
     AddField,
+    AlterModelOptions,
 ]
 
 # if a migration contains any of these, the result is commented
@@ -33,7 +34,6 @@ DANGEROUS_OPS = (
     AlterUniqueTogether,
     AlterIndexTogether,
     AlterOrderWithRespectTo,
-    AlterModelOptions,
     RemoveField,
     AlterField,
     RenameField,
@@ -71,9 +71,11 @@ class SQLDiffProducer(object):
         return connections[self.database]
 
     def format(self, line):
-        if not line.startswith("--") and not line.endswith(";"):
+        if line.startswith("--"):
+            return line
+        if not line.endswith(";"):
             line += ";"
-        if self.commented:
+        if self.commented :
             line = "-- " + line
         return line
 
@@ -87,6 +89,11 @@ class SQLDiffProducer(object):
                 state = l.project_state((app, name), at_end=False)
                 mig = l.graph.nodes[(app, name)]
                 self.commented = False
+                if not len(mig.operations):
+                    yield "-- Blank migration"
+                    yield """INSERT INTO "django_migrations" ("app", "name", "applied") VALUES ('{}', '{}', now());""".format(app, name)
+                    yield ""
+                    continue
                 for op in mig.operations:
                     # reject mutating changes
                     if op.__class__ in DANGEROUS_OPS:
@@ -101,16 +108,15 @@ class SQLDiffProducer(object):
                     # Hack!!! do not drop default on column creation
                     se.skip_default = lambda x: True
                     mig.apply(state, se, collect_sql=True)
-                    lines = []
-                    for line in se.collected_sql:
-                        lines.append(self.format(line))
-                    for line in se.deferred_sql:
-                        lines.append(self.format(line))
+                    lines = se.collected_sql + se.deferred_sql
                 except:
                     yield "-- GOT AN EXCEPTION!"
                 else:
+                    if not lines:
+                        yield "-- NO SQL MIGRATION HERE"
+                        self.commented = True
                     for line in lines:
-                        yield line
+                        yield self.format(line)
                         yield ""
                     yield self.format("""INSERT INTO "django_migrations" ("app", "name", "applied") VALUES ('{}', '{}', now());""".format(app, name))
                 yield ""
