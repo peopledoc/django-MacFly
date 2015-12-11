@@ -55,8 +55,6 @@ class Command(BaseCommand):
         p = SQLDiffProducer(DEFAULT_DB_ALIAS)
         for line in p:
             print line
-        #print p.apps
-        #print p.remaining
 
 
 class SQLDiffProducer(object):
@@ -94,6 +92,7 @@ class SQLDiffProducer(object):
                     yield """INSERT INTO "django_migrations" ("app", "name", "applied") VALUES ('{}', '{}', now());""".format(app, name)
                     yield ""
                     continue
+
                 for op in mig.operations:
                     # reject mutating changes
                     if op.__class__ in DANGEROUS_OPS:
@@ -115,10 +114,14 @@ class SQLDiffProducer(object):
                     if not lines:
                         yield "-- NO SQL MIGRATION HERE"
                         self.commented = True
+                    else:
+                        yield "BEGIN"
                     for line in lines:
                         yield self.format(line)
-                        yield ""
+                        #yield ""
                     yield self.format("""INSERT INTO "django_migrations" ("app", "name", "applied") VALUES ('{}', '{}', now());""".format(app, name))
+                    if lines:
+                        yield "COMMIT"
                 yield ""
 
     def load_migrations(self):
