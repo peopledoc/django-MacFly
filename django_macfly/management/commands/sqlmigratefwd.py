@@ -115,13 +115,13 @@ class SQLDiffProducer(object):
                         yield "-- NO SQL MIGRATION HERE"
                         self.commented = True
                     else:
-                        yield "BEGIN"
+                        yield self.format("BEGIN;")
                     for line in lines:
                         yield self.format(line)
                         #yield ""
                     yield self.format("""INSERT INTO "django_migrations" ("app", "name", "applied") VALUES ('{}', '{}', now());""".format(app, name))
                     if lines:
-                        yield "COMMIT"
+                        yield self.format("COMMIT;")
                 yield ""
 
     def load_migrations(self):
